@@ -85,6 +85,8 @@ nltk.tokenize.word_tokenize
 from nltk.corpus import stopwords
 from scipy.spatial.distance import cosine
 
+
+
 # Replace 'your_file.csv' with the actual path to your CSV file
 file_path = 'amazonFood.csv'
 
@@ -92,43 +94,67 @@ file_path = 'amazonFood.csv'
 df = pd.read_csv(file_path)
 
 # Extract the 'Text' column and fill an array with the texts
-texts_array = df['Text'].head(10000).tolist()
-id_array = df['ProductId'].head(10000).tolist()
+texts_array = df['Text'].head(40000).tolist()
+id_array = df['ProductId'].head(40000).tolist()
+name_array = df['productName'].head(40000).unique().tolist()
 # Print the first few texts for verification
 print(texts_array[:5])
 print(id_array[:5])
 count = 0
 
-
+unique_id = df['ProductId'].head(40000).unique().tolist()
 texts_lower_tokens = []
-for text in texts_array:
-  text_tokens  = nltk.word_tokenize(text.lower())
-  texts_lower_tokens.append(text_tokens)
 
-model = gensim.models.Word2Vec(sentences=texts_lower_tokens, vector_size=50, window=5, min_count=1, workers=1, epochs=20, seed=0)
+#a doc consists of all reviews for a certain product
+for id in unique_id:
+  rows = df.loc[df["ProductId"] == id]
+  review = ""
+  #print("rows",rows["ProductId"])
+  for row in rows["Text"]:
+    review += row
+  text_tokens  = nltk.word_tokenize(review.lower())
+  texts_lower_tokens.append(text_tokens)
+  
+print("size of unique id", len(unique_id))
+print("size of texts_lower_tokens",len(texts_lower_tokens))
+
+model = gensim.models.Word2Vec(sentences=texts_lower_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=0)
 
 IN_embs = model.wv
 OUT_embs = model.syn1neg
 
-
+queries = ["sweet","candy"]
 embeddings = IN_embs["sweet"]
-scores = []
+scores = [0]*len(texts_lower_tokens)
 
-for i, doc in enumerate(id_array):
-  docAry = []
-  for token in texts_lower_tokens[i]:
-    docAry.append(IN_embs[token])
-  embDocAry = np.mean(docAry, axis = 0)
-  cos = 1 - cosine(embeddings, embDocAry)
-  scores.append((i, cos))
+#multi-word queries
+doc_embs = np.zeros(100)
+for query in queries:
+  queryEmb = IN_embs[query]
+  for i, doc in enumerate(unique_id):
+    docAry = np.zeros(100)
+    for token in texts_lower_tokens[i]:
+      #print(token)
+      docAry += OUT_embs[model.wv.key_to_index[token]]
+    embDocAry = docAry/len(texts_lower_tokens[i])
+    cos = 1-  cosine(queryEmb, embDocAry)#1 - cosine(embeddings, embDocAry)
+    scores[i] += cos
 
-ranked_score = sorted(scores , key=lambda x:x[1], reverse = True)
-for i in range(10):
-  print (ranked_score[i][1] , '|', id_array[ranked_score[i][0]] )
+#average results for each queryword
+scores = [x/len(queries) for x in scores]
+
+#find indexes of highest scores
+idx = list(np.argsort(scores))
+idx.reverse()
+
+#print highest scores
+for i in idx[:25]:
+  print (scores[i] , '|', unique_id[i])
 
 import requests
 from bs4 import BeautifulSoup
 
+"""
 # Replace '{productid}' with the actual product ID in the URL
 for i in range(100):
     product_url = 'https://www.amazon.com/dp/{productid}'
@@ -148,3 +174,4 @@ for i in range(100):
         print('Product Title:', product_title)
     else:
         print('Failed to retrieve the page. Status code:', response.status_code)
+"""
