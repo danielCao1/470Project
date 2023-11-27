@@ -66,6 +66,72 @@
 
 
 ###################### Recommender Implementation #####################
+
+
+####################### TF-IDF SIMILAR ITEMS #############################
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+
+# Download NLTK resources
+nltk.download('stopwords')
+nltk.download('punkt')
+
+# Read the CSV file into a DataFrame
+file_path = 'amazonFood.csv'
+df = pd.read_csv(file_path)
+
+# Assume 'productName' contains information about the products
+product_names = df['productName'].tolist()
+
+# Tokenize and preprocess the product names
+stop_words = set(stopwords.words('english'))
+
+def preprocess_text(text):
+    tokens = word_tokenize(text.lower())
+    tokens = [token for token in tokens if token.isalpha() and token not in stop_words]
+    return ' '.join(tokens)
+
+preprocessed_product_names = [preprocess_text(name) for name in product_names]
+
+# Create a TF-IDF vectorizer
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(preprocessed_product_names)
+
+# Calculate cosine similarity between the query and each product
+query = "barbeque chips"
+query_vector = vectorizer.transform([preprocess_text(query)])
+
+cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+
+# Get indices of the most similar products
+most_similar_indices = cosine_similarities.argsort()[::-1]
+
+# Keep track of recommended product IDs to ensure uniqueness
+recommended_product_ids = set()
+
+# Print the most similar unique products
+print("Top 20 recommended unique products:")
+for index in most_similar_indices:
+    product_id = df.iloc[index]['ProductId']
+    
+    # Check if the product ID has already been recommended
+    if product_id not in recommended_product_ids:
+        recommended_product_ids.add(product_id)
+        print(df.iloc[index]['productName'])
+    
+    # Stop when you have enough unique recommendations
+    if len(recommended_product_ids) == 20:
+        break
+print (recommended_product_ids)
+
+
+###################### USE WORD2VEC ON TEXT #######################
+
+
 import pandas as pd
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -85,93 +151,66 @@ nltk.tokenize.word_tokenize
 from nltk.corpus import stopwords
 from scipy.spatial.distance import cosine
 
-
-
-# Replace 'your_file.csv' with the actual path to your CSV file
-file_path = 'amazonFood.csv'
-
 # Read the CSV file into a DataFrame
 df = pd.read_csv(file_path)
 
-# Extract the 'Text' column and fill an array with the texts
-texts_array = df['Text'].head(40000).tolist()
-id_array = df['ProductId'].head(40000).tolist()
-name_array = df['productName'].head(40000).unique().tolist()
-# Print the first few texts for verification
-print(texts_array[:5])
-print(id_array[:5])
-count = 0
+selected_rows = df[df['ProductId'].isin(recommended_product_ids)]
 
-unique_id = df['ProductId'].head(40000).unique().tolist()
-texts_lower_tokens = []
 
-#a doc consists of all reviews for a certain product
-for id in unique_id:
-  rows = df.loc[df["ProductId"] == id]
-  review = ""
-  #print("rows",rows["ProductId"])
-  for row in rows["Text"]:
-    review += row
-  text_tokens  = nltk.word_tokenize(review.lower())
-  texts_lower_tokens.append(text_tokens)
-  
-print("size of unique id", len(unique_id))
-print("size of texts_lower_tokens",len(texts_lower_tokens))
+text_lower_tokens = []
+for text in selected_rows['Text']:
+  text_tokens = nltk.word_tokenize(text.lower())
+  text_lower_tokens.append(text_tokens)
 
-model = gensim.models.Word2Vec(sentences=texts_lower_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=0)
+model = gensim.models.Word2Vec(sentences=text_lower_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=0)
+
 
 IN_embs = model.wv
-OUT_embs = model.syn1neg
+embeddings = IN_embs["delicious"]
+scores = []
 
-queries = ["sweet","candy"]
-embeddings = IN_embs["sweet"]
-scores = [0]*len(texts_lower_tokens)
+for i, doc in enumerate(recommended_product_ids):
+  docAry = []
+  for token in text_lower_tokens[i]:
+    docAry.append(IN_embs[token])
+  embDocAry = np.mean(docAry, axis = 0)
+  cos = 1 - cosine(embeddings, embDocAry)
+  scores.append((i, cos))
 
-#multi-word queries
-doc_embs = np.zeros(100)
-for query in queries:
-  queryEmb = IN_embs[query]
-  for i, doc in enumerate(unique_id):
-    docAry = np.zeros(100)
-    for token in texts_lower_tokens[i]:
-      #print(token)
-      docAry += OUT_embs[model.wv.key_to_index[token]]
-    embDocAry = docAry/len(texts_lower_tokens[i])
-    cos = 1-  cosine(queryEmb, embDocAry)#1 - cosine(embeddings, embDocAry)
-    scores[i] += cos
+ranked_score = sorted(scores , key=lambda x:x[1], reverse = True)
+idList = list(recommended_product_ids)
+top5List = []
+for i in range(5):
+  top5List.append(idList[ranked_score[i][0]])
+  print (ranked_score[i][1] , '|', idList[ranked_score[i][0]] )
 
-#average results for each queryword
-scores = [x/len(queries) for x in scores]
 
-#find indexes of highest scores
-idx = list(np.argsort(scores))
-idx.reverse()
 
-#print highest scores
-for i in idx[:25]:
-  print (scores[i] , '|', unique_id[i])
+for id in top5List:
+  selected_row = df[df['ProductId'] == id]
 
-import requests
-from bs4 import BeautifulSoup
+  # Check if the ProductId is present in the DataFrame
+  if not selected_row.empty:
+      # Print the corresponding productName and Summary
+      product_name = selected_row['productName'].iloc[0]
+      summary = selected_row['Summary'].iloc[0]
 
-"""
-# Replace '{productid}' with the actual product ID in the URL
-for i in range(100):
-    product_url = 'https://www.amazon.com/dp/{productid}'
-    product_id = id_array[ranked_score[i][0]]
+      print(f"ProductId: {id}")
+      print(f"ProductName: {product_name}")
+      print(f"Summary: {summary}")
+  else:
+      print(f"ProductId {id} not found in the dataset.")
 
-    # Make a request to the Amazon product page
-    response = requests.get(product_url.format(productid=product_id))
 
-    # Check if the request was successful (status code 200)
-    if response.status_code == 200:
-        # Parse the HTML content using BeautifulSoup
-        soup = BeautifulSoup(response.text, 'html.parser')
+########################## order top 20 by rating ########################
 
-        # Extract information from the page as needed
-        # Example: Print the product title
-        product_title = soup.find('span', {'id': 'productTitle'}).text.strip()
-        print('Product Title:', product_title)
-    else:
-        print('Failed to retrieve the page. Status code:', response.status_code)
-"""
+# Filter the DataFrame to include only the specified ProductIds
+selected_rows = df[df['ProductId'].isin(idList)]
+
+# Calculate the average score for each product in the selected rows
+average_scores = selected_rows.groupby('ProductId')['Score'].mean().reset_index()
+
+# Print the average scores
+print("Average Scores:")
+for _, row in average_scores.iterrows():
+    print(f"ProductId: {row['ProductId']}, Average Score: {row['Score']}")
