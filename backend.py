@@ -50,18 +50,21 @@ def TFIDF_query(query):
 
   # Print the most similar unique products
   print("Top 20 recommended unique products:")
+  productData = []
   for index in most_similar_indices:
       product_id = df.iloc[index]['ProductId']
       
       # Check if the product ID has already been recommended
       if product_id not in recommended_product_ids:
           recommended_product_ids.add(product_id)
-          print(df.iloc[index]['productName'])
-      
+          product_name = df.iloc[index]['productName']
+          product_data_string = f"{product_name} (ID: {product_id})"
+          productData.append(product_data_string)
+        
       # Stop when you have enough unique recommendations
       if len(recommended_product_ids) == 20:
           break
-  return recommended_product_ids
+  return recommended_product_ids , productData
 
 
 ###################### USE WORD2VEC ON TEXT #######################
@@ -119,39 +122,97 @@ def word2Vec(query, recommended_product_ids):
     print (ranked_score[i][1] , '|', idList[ranked_score[i][0]] )
 
 
+  productData = []
 
   for id in top5List:
-    selected_row = df[df['ProductId'] == id]
+      selected_row = df[df['ProductId'] == id]
 
-    # Check if the ProductId is present in the DataFrame
-    if not selected_row.empty:
-        # Print the corresponding productName and Summary
-        product_name = selected_row['productName'].iloc[0]
-        summary = selected_row['Summary'].iloc[0]
+      if not selected_row.empty:
+          product_name = selected_row['productName'].iloc[0]
+          summary = selected_row['Summary'].iloc[0]
 
-        print(f"ProductId: {id}")
-        print(f"ProductName: {product_name}")
-        print(f"Summary: {summary}")
-    else:
-        print(f"ProductId {id} not found in the dataset.")
+          product_info_string = f"ProductId: {id}, ProductName: {product_name}, Summary: {summary}"
+
+          productData.append(product_info_string)
+      else:
+          productData.append(f"ProductId {id} not found in the dataset.")
+  print (productData)
+  return productData
 
 
 ########################## order top 20 by rating ########################
 
 # Filter the DataFrame to include only the specified ProductIds
 def ScoreSort(recommended_product_ids):
-  idList = list(recommended_product_ids)
-  selected_rows = df[df['ProductId'].isin(idList)]
+    idList = list(recommended_product_ids)
+    selected_rows = df[df['ProductId'].isin(idList)]
 
-  # Calculate the average score for each product in the selected rows
-  average_scores = selected_rows.groupby('ProductId')['Score'].mean().reset_index()
+    average_scores = selected_rows.groupby('ProductId')['Score'].mean().reset_index()
 
-  # Print the average scores
-  print("Average Scores:")
-  for _, row in average_scores.iterrows():
-      print(f"ProductId: {row['ProductId']}, Average Score: {row['Score']}")
+    sorted_scores = average_scores.sort_values(by='Score', ascending=False)
+
+    productData = []
+
+    for _, row in sorted_scores.iterrows():
+        product_id = row['ProductId']
+        average_score = row['Score']
+        #product_name = row['productName']
+
+        # Format the information into a string
+        product_info_string = f"ProductId: {product_id}, Average Score: {average_score}"
+
+        print(product_info_string)
+
+        productData.append(product_info_string)
+
+    return productData
 
 
-recList = TFIDF_query("dog food")
-word2Vec("good", recList)
-ScoreSort(recList)
+## recList = TFIDF_query("dog food")
+#word2Vec("good", recList[0])
+#ScoreSort(recList[0])
+tflist = []
+
+
+
+############################### FLASK API IMPLEMENTATION ##################################
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+### MUST CALL TFIDF FIRST
+@app.route('/TFIDF', methods=['GET'])
+def tf_idf_call():
+    ## QUERY
+    query = request.args.get('query', default='', type=str)
+
+
+    global tflist
+    result = TFIDF_query("query")
+    tflist = result[0]
+    output = {'results': list(result[1]), 'status': 'success'}
+
+    return jsonify(output)
+
+@app.route('/word2vec', methods=['GET'])
+def word2vec_call():
+    # QUERY
+
+    result = word2Vec("yummy", tflist)
+    output = {'results': result, 'status': 'success'}
+
+    return jsonify(output)
+
+
+@app.route('/ranking', methods=['GET'])
+def rank_call():
+
+    result = ScoreSort(tflist)
+    output = {'results': list(result), 'status': 'success'}
+
+    return jsonify(output)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
