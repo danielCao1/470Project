@@ -1,74 +1,9 @@
 
-############## REACT API ##########################
-# from flask import Flask, jsonify
-
-# app = Flask('backend.py')
-
-# @app.route('/api/data', methods=['GET'])
-# def get_data():
-#     data = {'message': 'Hello from Python!'}
-#     return jsonify(data)
-
-# if 'backend.py' == 'main':
-#     app.run(debug=True)
-
-
-
-
-
-
-
-# ############## CHATGPT API IMPLEMENTATION ################
-
-# import openai
-
-# # Set your OpenAI API key here
-# api_key = "your-api-key"
-
-# # Set the API endpoint
-# api_endpoint = "https://api.openai.com/v1/chat/completions"
-
-# # Set the conversation history
-# conversation_history = [
-#     {"role": "system", "content": "You are a helpful assistant."},
-#     {"role": "user", "content": "Who won the world series in 2020?"},
-#     {"role": "assistant", "content": "The Los Angeles Dodgers won the World Series in 2020."},
-#     {"role": "user", "content": "Where was it played?"}
-# ]
-
-# # Set the user input
-# user_input = "It was played in Arlington, Texas."
-
-# # Create the request payload
-# payload = {
-#     "model": "gpt-3.5-turbo",
-#     "messages": [{"role": role, "content": content} for {"role", "content"} in conversation_history],
-#     "max_tokens": 100,
-#     "stop": None,
-#     "temperature": 0.7,
-# }
-
-# # Add the user input to the payload
-# payload["messages"].append({"role": "user", "content": user_input})
-
-# # Make the API request
-# headers = {
-#     "Content-Type": "application/json",
-#     "Authorization": f"Bearer {api_key}",
-# }
-
-# response = requests.post(api_endpoint, json=payload, headers=headers)
-
-# # Print the API response
-# print(response.json())
-
-
-
 
 ###################### Recommender Implementation #####################
 
-
 ####################### TF-IDF SIMILAR ITEMS #############################
+
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -101,32 +36,32 @@ preprocessed_product_names = [preprocess_text(name) for name in product_names]
 vectorizer = TfidfVectorizer()
 tfidf_matrix = vectorizer.fit_transform(preprocessed_product_names)
 
-# Calculate cosine similarity between the query and each product
-query = "barbeque chips"
-query_vector = vectorizer.transform([preprocess_text(query)])
 
-cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+def TFIDF_query(query):
+  query_vector = vectorizer.transform([preprocess_text(query)])
 
-# Get indices of the most similar products
-most_similar_indices = cosine_similarities.argsort()[::-1]
+  cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
 
-# Keep track of recommended product IDs to ensure uniqueness
-recommended_product_ids = set()
+  # Get indices of the most similar products
+  most_similar_indices = cosine_similarities.argsort()[::-1]
 
-# Print the most similar unique products
-print("Top 20 recommended unique products:")
-for index in most_similar_indices:
-    product_id = df.iloc[index]['ProductId']
-    
-    # Check if the product ID has already been recommended
-    if product_id not in recommended_product_ids:
-        recommended_product_ids.add(product_id)
-        print(df.iloc[index]['productName'])
-    
-    # Stop when you have enough unique recommendations
-    if len(recommended_product_ids) == 20:
-        break
-print (recommended_product_ids)
+  # Keep track of recommended product IDs to ensure uniqueness
+  recommended_product_ids = set()
+
+  # Print the most similar unique products
+  print("Top 20 recommended unique products:")
+  for index in most_similar_indices:
+      product_id = df.iloc[index]['ProductId']
+      
+      # Check if the product ID has already been recommended
+      if product_id not in recommended_product_ids:
+          recommended_product_ids.add(product_id)
+          print(df.iloc[index]['productName'])
+      
+      # Stop when you have enough unique recommendations
+      if len(recommended_product_ids) == 20:
+          break
+  return recommended_product_ids
 
 
 ###################### USE WORD2VEC ON TEXT #######################
@@ -151,66 +86,72 @@ nltk.tokenize.word_tokenize
 from nltk.corpus import stopwords
 from scipy.spatial.distance import cosine
 
-# Read the CSV file into a DataFrame
-df = pd.read_csv(file_path)
-
-selected_rows = df[df['ProductId'].isin(recommended_product_ids)]
-
-
-text_lower_tokens = []
-for text in selected_rows['Text']:
-  text_tokens = nltk.word_tokenize(text.lower())
-  text_lower_tokens.append(text_tokens)
-
-model = gensim.models.Word2Vec(sentences=text_lower_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=0)
+def word2Vec(query, recommended_product_ids):
+  # Read the CSV file into a DataFrame
+  selected_rows = df[df['ProductId'].isin(recommended_product_ids)]
 
 
-IN_embs = model.wv
-embeddings = IN_embs["delicious"]
-scores = []
+  text_lower_tokens = []
+  for text in selected_rows['Text']:
+    text_tokens = nltk.word_tokenize(text.lower())
+    text_lower_tokens.append(text_tokens)
 
-for i, doc in enumerate(recommended_product_ids):
-  docAry = []
-  for token in text_lower_tokens[i]:
-    docAry.append(IN_embs[token])
-  embDocAry = np.mean(docAry, axis = 0)
-  cos = 1 - cosine(embeddings, embDocAry)
-  scores.append((i, cos))
-
-ranked_score = sorted(scores , key=lambda x:x[1], reverse = True)
-idList = list(recommended_product_ids)
-top5List = []
-for i in range(5):
-  top5List.append(idList[ranked_score[i][0]])
-  print (ranked_score[i][1] , '|', idList[ranked_score[i][0]] )
+  model = gensim.models.Word2Vec(sentences=text_lower_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=0)
 
 
+  IN_embs = model.wv
+  embeddings = IN_embs[query]
+  scores = []
 
-for id in top5List:
-  selected_row = df[df['ProductId'] == id]
+  for i, doc in enumerate(recommended_product_ids):
+    docAry = []
+    for token in text_lower_tokens[i]:
+      docAry.append(IN_embs[token])
+    embDocAry = np.mean(docAry, axis = 0)
+    cos = 1 - cosine(embeddings, embDocAry)
+    scores.append((i, cos))
 
-  # Check if the ProductId is present in the DataFrame
-  if not selected_row.empty:
-      # Print the corresponding productName and Summary
-      product_name = selected_row['productName'].iloc[0]
-      summary = selected_row['Summary'].iloc[0]
+  ranked_score = sorted(scores , key=lambda x:x[1], reverse = True)
+  idList = list(recommended_product_ids)
+  top5List = []
+  for i in range(5):
+    top5List.append(idList[ranked_score[i][0]])
+    print (ranked_score[i][1] , '|', idList[ranked_score[i][0]] )
 
-      print(f"ProductId: {id}")
-      print(f"ProductName: {product_name}")
-      print(f"Summary: {summary}")
-  else:
-      print(f"ProductId {id} not found in the dataset.")
+
+
+  for id in top5List:
+    selected_row = df[df['ProductId'] == id]
+
+    # Check if the ProductId is present in the DataFrame
+    if not selected_row.empty:
+        # Print the corresponding productName and Summary
+        product_name = selected_row['productName'].iloc[0]
+        summary = selected_row['Summary'].iloc[0]
+
+        print(f"ProductId: {id}")
+        print(f"ProductName: {product_name}")
+        print(f"Summary: {summary}")
+    else:
+        print(f"ProductId {id} not found in the dataset.")
 
 
 ########################## order top 20 by rating ########################
 
 # Filter the DataFrame to include only the specified ProductIds
-selected_rows = df[df['ProductId'].isin(idList)]
+def ScoreSort(recommended_product_ids):
+  idList = list(recommended_product_ids)
+  selected_rows = df[df['ProductId'].isin(idList)]
 
-# Calculate the average score for each product in the selected rows
-average_scores = selected_rows.groupby('ProductId')['Score'].mean().reset_index()
+  # Calculate the average score for each product in the selected rows
+  average_scores = selected_rows.groupby('ProductId')['Score'].mean().reset_index()
 
-# Print the average scores
-print("Average Scores:")
-for _, row in average_scores.iterrows():
-    print(f"ProductId: {row['ProductId']}, Average Score: {row['Score']}")
+  # Print the average scores
+  print("Average Scores:")
+  for _, row in average_scores.iterrows():
+      print(f"ProductId: {row['ProductId']}, Average Score: {row['Score']}")
+
+
+recList = TFIDF_query("dog food")
+word2Vec("good", recList)
+ScoreSort(recList)
