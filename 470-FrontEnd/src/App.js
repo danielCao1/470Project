@@ -21,6 +21,8 @@ import Button from 'react-bootstrap/Button';
 function App() {
   
   const [data, setData] = useState({});
+  const [backendString, setBackendString] = useState('');
+
 
   useEffect(() => {
       fetch('/api/data')
@@ -28,6 +30,27 @@ function App() {
           .then(data => setData(data))
           .catch(error => console.error('Error:', error));
   }, []);
+
+  const [tfidfResults, setTfidfResults] = useState([]);
+  const [query, setQuery] = useState('');
+
+  const handleButtonClick = async () => {
+    console.log('Button clicked');
+  
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/TFIDF?query=${query}`, {
+        method: 'GET', // Specify the request method
+      });
+      console.log(response)
+      const data = await response.json();
+      console.log("hi")
+
+      setTfidfResults(data.results);
+    } catch (error) {
+      console.error('Error fetching TFIDF results:', error);
+    }
+  };
+
 
   return (
   
@@ -54,7 +77,26 @@ function App() {
 
       </Form>
     </div>
+    <div>
+    <label>
+        Enter your query:
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </label>
 
+      <button onClick={handleButtonClick}>
+        Fetch TFIDF Results
+      </button>
+
+      <ul>
+        {tfidfResults.map((result, index) => (
+          <li key={index}>{result}</li>
+        ))}
+      </ul>
+    </div>
   </div>
     // <div style={{backgroundColor: 'grey', position:"absolute", left:"0",
     // right:"0", height:"100%"}}>

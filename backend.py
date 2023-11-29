@@ -177,8 +177,12 @@ tflist = []
 
 ############################### FLASK API IMPLEMENTATION ##################################
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
+
 ### MUST CALL TFIDF FIRST
 @app.route('/TFIDF', methods=['GET'])
 def tf_idf_call():
@@ -187,7 +191,7 @@ def tf_idf_call():
 
 
     global tflist
-    result = TFIDF_query("query")
+    result = TFIDF_query(query)
     tflist = result[0]
     output = {'results': list(result[1]), 'status': 'success'}
 
