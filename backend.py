@@ -200,8 +200,10 @@ def tf_idf_call():
 @app.route('/word2vec', methods=['GET'])
 def word2vec_call():
     # QUERY
+    query = request.args.get('query', default='', type=str)
 
-    result = word2Vec("yummy", tflist)
+
+    result = word2Vec(query, tflist)
     output = {'results': result, 'status': 'success'}
 
     return jsonify(output)

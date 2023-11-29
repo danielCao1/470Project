@@ -51,6 +51,39 @@ function App() {
     }
   };
 
+  const [Word2VecResults, setWord2VecResults] = useState([]);
+  const [query1, setQuery1] = useState('');
+
+  const handleButtonClick1 = async () => {
+    console.log('Button clicked');
+  
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/word2vec?query=${query1}`, {
+        method: 'GET', // Specify the request method
+      });
+      console.log(response)
+      const data = await response.json();
+
+      setWord2VecResults(data.results);
+    } catch (error) {
+      console.error('Error fetching TFIDF results:', error);
+    }
+  };
+  
+
+  const [rankingResults, setRankingResults] = useState([]);
+
+  const handleRankingButtonClick2 = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/ranking`);
+      const data = await response.json();
+      setRankingResults(data.results);
+    } catch (error) {
+      console.error('Error fetching ranking results:', error);
+    }
+  };
+
+
 
   return (
   
@@ -93,6 +126,39 @@ function App() {
 
       <ul>
         {tfidfResults.map((result, index) => (
+          <li key={index}>{result}</li>
+        ))}
+      </ul>
+    </div>
+
+    <div>
+    <label>
+        Enter your query:
+        <input
+          type="text"
+          value={query1}
+          onChange={(e) => setQuery1(e.target.value)}
+        />
+      </label>
+
+      <button onClick={handleButtonClick1}>
+        Fetch Word2VecResults Results
+      </button>
+
+      <ul>
+        {Word2VecResults.map((result, index) => (
+          <li key={index}>{result}</li>
+        ))}
+      </ul>
+    </div>
+
+    <div>
+      <button onClick={handleRankingButtonClick2}>
+        Get Ranking
+      </button>
+
+      <ul>
+        {rankingResults.map((result, index) => (
           <li key={index}>{result}</li>
         ))}
       </ul>
