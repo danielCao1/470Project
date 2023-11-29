@@ -62,7 +62,7 @@ def TFIDF_query(query):
           productData.append(product_data_string)
         
       # Stop when you have enough unique recommendations
-      if len(recommended_product_ids) == 20:
+      if len(recommended_product_ids) == 12:
           break
   return recommended_product_ids , productData
 
@@ -99,6 +99,8 @@ def word2Vec(query, recommended_product_ids):
     text_tokens = nltk.word_tokenize(text.lower())
     text_lower_tokens.append(text_tokens)
 
+  text_lower_tokens.append(nltk.word_tokenize(query.lower()))
+  
   model = gensim.models.Word2Vec(sentences=text_lower_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=0)
 
 
@@ -131,7 +133,7 @@ def word2Vec(query, recommended_product_ids):
           product_name = selected_row['productName'].iloc[0]
           summary = selected_row['Summary'].iloc[0]
 
-          product_info_string = f"ProductId: {id}, ProductName: {product_name}, Summary: {summary}"
+          product_info_string = f"Amazon ID: {id}, Product Name: {product_name}, Summary: {summary}"
 
           productData.append(product_info_string)
       else:
@@ -159,7 +161,7 @@ def ScoreSort(recommended_product_ids):
         #product_name = row['productName']
 
         # Format the information into a string
-        product_info_string = f"ProductId: {product_id}, Average Score: {average_score}"
+        product_info_string = f"Amazon ID: {product_id}, Average Score: {average_score}"
 
         print(product_info_string)
 
