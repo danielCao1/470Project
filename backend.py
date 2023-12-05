@@ -93,7 +93,7 @@ def word2Vec(query, recommended_product_ids):
   # Read the CSV file into a DataFrame
   selected_rows = df[df['ProductId'].isin(recommended_product_ids)]
 
-
+  # tokenize dictionary
   text_lower_tokens = []
   for text in selected_rows['Text']:
     text_tokens = nltk.word_tokenize(text.lower())
@@ -103,11 +103,12 @@ def word2Vec(query, recommended_product_ids):
   
   model = gensim.models.Word2Vec(sentences=text_lower_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=0)
 
-
+  # in inembeddings
   IN_embs = model.wv
   embeddings = IN_embs[query]
   scores = []
 
+# calculate cos similarity
   for i, doc in enumerate(recommended_product_ids):
     docAry = []
     for token in text_lower_tokens[i]:
@@ -123,9 +124,9 @@ def word2Vec(query, recommended_product_ids):
     top5List.append(idList[ranked_score[i][0]])
     print (ranked_score[i][1] , '|', idList[ranked_score[i][0]] )
 
-
   productData = []
 
+# print outputs
   for id in top5List:
       selected_row = df[df['ProductId'] == id]
 
@@ -142,12 +143,14 @@ def word2Vec(query, recommended_product_ids):
   return productData
 
 
-########################## order top 20 by rating ########################
+########################## Sort by Average Ratings ########################
 
 # Filter the DataFrame to include only the specified ProductIds
 def ScoreSort(recommended_product_ids):
     idList = list(recommended_product_ids)
     selected_rows = df[df['ProductId'].isin(idList)]
+
+    # take the basic average of all scores with name
 
     average_scores = selected_rows.groupby('ProductId')['Score'].mean().reset_index()
 
@@ -170,12 +173,7 @@ def ScoreSort(recommended_product_ids):
     return productData
 
 
-## recList = TFIDF_query("dog food")
-#word2Vec("good", recList[0])
-#ScoreSort(recList[0])
 tflist = []
-
-
 
 ############################### FLASK API IMPLEMENTATION ##################################
 from flask import Flask, request, jsonify

@@ -189,34 +189,7 @@ function App() {
       
     </div>
   </div>
-    // <div style={{backgroundColor: 'grey', position:"absolute", left:"0",
-    // right:"0", height:"100%"}}>
-    //   <Navbar expand="lg" className="bg-body-tertiary">
-    //   <Container>
-    //     <Navbar.Brand href="#home">The Taste Bot</Navbar.Brand>
-    //     <Navbar.Toggle aria-controls="basic-navbar-nav" />
-    //     <Navbar.Collapse id="basic-navbar-nav">ds</Navbar.Collapse>
-    //     <Nav className="me-auto">
-    //       <Nav.Link href="#home">Home</Nav.Link>
-    //       <Nav.Link href="#link">Link</Nav.Link>
-    //       <NavDropdown title="Dropdown" id="basic-nav-dropdown">
-    //         <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
-    //         <NavDropdown.Item href="#action/3.2">
-    //           Another action
-    //         </NavDropdown.Item>
-    //         <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item>
-    //         <NavDropdown.Divider />
-    //         <NavDropdown.Item href="#action/3.4">
-    //           Separated link
-    //         </NavDropdown.Item>
-    //       </NavDropdown>
-    //     </Nav>
-    //   </Container>
-    //   </Navbar> 
-    //   <div class="text-center">
-    //     <p className="fs-1">hey</p>
-    //   </div>
-    // </div>
+
   );
 }
 
